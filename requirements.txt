@@ -1,0 +1,11 @@
+torch
+transformers
+accelerate
+sentence-transformers
+faiss-cpu
+pydantic
+numpy
+scipy
+tqdm
+pyyaml
+rich
