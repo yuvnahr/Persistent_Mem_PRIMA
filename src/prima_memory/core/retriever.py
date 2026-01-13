@@ -14,8 +14,8 @@ This module does NOT:
 
 from typing import List
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex
+from prima_memory.core.note import MemoryNote
 from prima_memory.persistence.sqlite import SQLiteMemoryStore
 
 

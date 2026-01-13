@@ -9,17 +9,15 @@ Validates:
 3. No self-links
 """
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex
-from prima_memory.core.retriever import MemoryRetriever
 from prima_memory.core.linker import MemoryLinker
+from prima_memory.core.note import MemoryNote
 from prima_memory.persistence.sqlite import SQLiteMemoryStore
 
 
 def test_linker_sanity():
     store = SQLiteMemoryStore()
     embedder = EmbeddingIndex()
-    retriever = MemoryRetriever(store=store, embedder=embedder)
     linker = MemoryLinker(store=store, similarity_threshold=0.5)
 
     note_main = MemoryNote(

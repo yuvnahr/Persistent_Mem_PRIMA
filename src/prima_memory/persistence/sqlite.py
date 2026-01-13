@@ -5,14 +5,13 @@ SQLite persistence layer for PRIMA memory notes.
 Handles storage and retrieval of MemoryNote objects.
 """
 
-import sqlite3
 import json
 import pickle
+import sqlite3
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from prima_memory.core.note import MemoryNote
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DB_PATH = PROJECT_ROOT / "data" / "memory.db"

@@ -12,9 +12,9 @@ This is a derived layer: embeddings can be recomputed at any time.
 """
 
 from typing import List, Tuple
-import numpy as np
 
 import faiss
+import numpy as np
 from sentence_transformers import SentenceTransformer
 
 

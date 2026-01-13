@@ -10,10 +10,10 @@ Validates:
 4. Access metadata updates (retrieval_count)
 """
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex
-from prima_memory.persistence.sqlite import SQLiteMemoryStore
+from prima_memory.core.note import MemoryNote
 from prima_memory.core.retriever import MemoryRetriever
+from prima_memory.persistence.sqlite import SQLiteMemoryStore
 
 
 def test_retrieval_sanity():

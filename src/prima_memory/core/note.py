@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 def _now_ts() -> str:

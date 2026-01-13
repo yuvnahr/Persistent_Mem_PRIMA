@@ -10,13 +10,13 @@ Validates:
 4. No mutation of raw content
 """
 
-import sqlite3
 import json
+import sqlite3
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex
-from prima_memory.core.retriever import MemoryRetriever
 from prima_memory.core.evolution import MemoryEvolver
+from prima_memory.core.note import MemoryNote
+from prima_memory.core.retriever import MemoryRetriever
 from prima_memory.persistence.sqlite import SQLiteMemoryStore
 
 

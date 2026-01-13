@@ -131,8 +131,8 @@ class MemoryEvolver:
         """
         Write updated semantic fields back to SQLite.
         """
-        import sqlite3
         import json
+        import sqlite3
 
         conn = sqlite3.connect(self.store.db_path)
         try:
