@@ -25,6 +25,9 @@ class SQLiteMemoryStore:
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = db_path or DB_PATH
 
+        # Ensure parent directory exists (CI-safe)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
     # -----------------------------
     # Internal helpers
     # -----------------------------
