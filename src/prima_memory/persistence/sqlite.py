@@ -60,7 +60,11 @@ class SQLiteMemoryStore:
                     note.context,
                     json.dumps(note.keywords),
                     json.dumps(note.tags),
-                    pickle.dumps(note.embedding) if note.embedding is not None else None,
+                    (
+                        pickle.dumps(note.embedding)
+                        if note.embedding is not None
+                        else None
+                    ),
                 ),
             )
             conn.commit()
@@ -106,9 +110,13 @@ class SQLiteMemoryStore:
     # Links
     # -----------------------------
 
-    def add_link(self, source_id: str, target_id: str,
-                 relation_type: str = "related",
-                 strength: Optional[float] = None) -> None:
+    def add_link(
+        self,
+        source_id: str,
+        target_id: str,
+        relation_type: str = "related",
+        strength: Optional[float] = None,
+    ) -> None:
         conn = self._connect()
         try:
             conn.execute(

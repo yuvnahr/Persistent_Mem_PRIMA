@@ -52,18 +52,14 @@ class MemoryNote:
         content: str,
         note_id: Optional[str] = None,
         timestamp: Optional[str] = None,
-
         # Semantic (LLM-generated)
         context: Optional[str] = None,
         keywords: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
-
         # Vector representation
         embedding: Optional[List[float]] = None,
-
         # Relational structure
         links: Optional[Dict[str, Dict[str, Any]]] = None,
-
         # Usage & evolution
         retrieval_count: int = 0,
         last_accessed: Optional[str] = None,
@@ -136,7 +132,9 @@ class MemoryNote:
     # Linking operations
     # ----------------------------
 
-    def add_link(self, other_note_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def add_link(
+        self, other_note_id: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Add or update a link to another memory note.
 

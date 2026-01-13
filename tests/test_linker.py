@@ -53,8 +53,7 @@ def test_linker_sanity():
     )
 
     retrieved_notes = [
-        (store.get_note(mem_id), score)
-        for mem_id, score in retrieved_ids_scores
+        (store.get_note(mem_id), score) for mem_id, score in retrieved_ids_scores
     ]
 
     # Run linker
