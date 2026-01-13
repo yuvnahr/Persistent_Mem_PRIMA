@@ -9,7 +9,7 @@ new information and repeated access patterns.
 Implements the A-MEM evolution stage (Ps3).
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 from prima_memory.core.note import MemoryNote
 from prima_memory.persistence.sqlite import SQLiteMemoryStore
@@ -88,7 +88,7 @@ class MemoryEvolver:
         Apply semantic evolution to a single memory.
         """
 
-        changes = {}
+        changes: Dict[str, Dict[str, Any]] = {}
 
         # 1. Merge tags
         new_tags = sorted(set(target.tags) | set(source.tags))
