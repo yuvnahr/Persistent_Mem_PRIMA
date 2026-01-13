@@ -13,27 +13,49 @@ from typing import List, Optional
 
 from prima_memory.core.note import MemoryNote
 
+# Project paths
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DB_PATH = PROJECT_ROOT / "data" / "memory.db"
+DATA_DIR = PROJECT_ROOT / "data"
+DB_PATH = DATA_DIR / "memory.db"
+SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 
 class SQLiteMemoryStore:
     """
     Persistence backend for MemoryNote using SQLite.
+    Automatically initializes storage directory and schema.
     """
 
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = db_path or DB_PATH
 
-        # Ensure parent directory exists (CI-safe)
+        # Ensure data directory exists (CI-safe)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Ensure schema exists
+        self._init_db()
 
     # -----------------------------
     # Internal helpers
     # -----------------------------
 
-    def _connect(self):
+    def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.db_path)
+
+    def _init_db(self) -> None:
+        """
+        Initialize database schema if not already present.
+        """
+        if not SCHEMA_PATH.exists():
+            raise FileNotFoundError(f"Missing schema.sql at {SCHEMA_PATH}")
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+                conn.executescript(f.read())
+            conn.commit()
+        finally:
+            conn.close()
 
     # -----------------------------
     # MemoryNote operations
@@ -48,8 +70,15 @@ class SQLiteMemoryStore:
             conn.execute(
                 """
                 INSERT INTO memory_notes (
-                    id, content, created_at, last_accessed,
-                    retrieval_count, context, keywords, tags, embedding
+                    id,
+                    content,
+                    created_at,
+                    last_accessed,
+                    retrieval_count,
+                    context,
+                    keywords,
+                    tags,
+                    embedding
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -76,12 +105,13 @@ class SQLiteMemoryStore:
     def get_note(self, note_id: str) -> Optional[MemoryNote]:
         """
         Retrieve a MemoryNote by ID.
-        Updates access metadata automatically.
+        Automatically updates access metadata.
         """
         conn = self._connect()
         try:
             row = conn.execute(
-                "SELECT * FROM memory_notes WHERE id = ?", (note_id,)
+                "SELECT * FROM memory_notes WHERE id = ?",
+                (note_id,),
             ).fetchone()
 
             if row is None:
@@ -213,7 +243,9 @@ class SQLiteMemoryStore:
 
         return note
 
-    def _update_access_metadata(self, note: MemoryNote, conn) -> None:
+    def _update_access_metadata(
+        self, note: MemoryNote, conn: sqlite3.Connection
+    ) -> None:
         conn.execute(
             """
             UPDATE memory_notes
