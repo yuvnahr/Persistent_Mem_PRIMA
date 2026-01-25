@@ -1,0 +1,35 @@
+{
+  "section_a_static": [
+    {
+      "id": "a1",
+      "question": "What is agentic memory?",
+      "answer": "The ability of an agent to remember its own actions and decisions."
+    }
+  ],
+  "section_b_recall": [
+    {
+      "id": "b1",
+      "question": "Earlier you defined agentic memory. Restate it in simpler words."
+    }
+  ],
+  "section_c_progressive": [
+    {
+      "id": "c1",
+      "question": "Explain the difference between short-term and long-term memory in AI."
+    },
+    {
+      "id": "c2",
+      "question": "Based on your previous answer, why is long-term memory important for agents?"
+    }
+  ],
+  "section_d_self_correction": [
+    {
+      "id": "d1",
+      "question": "Is agentic memory biologically proven in humans?"
+    },
+    {
+      "id": "d2",
+      "question": "Reconsider your earlier answer. Would you change anything?"
+    }
+  ]
+}

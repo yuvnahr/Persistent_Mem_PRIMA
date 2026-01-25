@@ -2,7 +2,7 @@
 # Core ML stack (PINNED)
 # -----------------------------
 torch>=2.1.0
-transformers==4.36.2
+transformers==4.38.2
 accelerate==0.25.0
 huggingface-hub==0.20.3
 sentence-transformers==2.2.2
