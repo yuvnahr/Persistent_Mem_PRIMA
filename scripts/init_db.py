@@ -2,32 +2,38 @@
 init_db.py
 
 Initializes the SQLite database for PRIMA by executing the schema.sql file.
-This script is idempotent and safe to run multiple times.
+Safe to run multiple times (idempotent).
 """
 
-import sqlite3
 from pathlib import Path
-
+import sqlite3
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 DB_PATH = PROJECT_ROOT / "data" / "memory.db"
 SCHEMA_PATH = PROJECT_ROOT / "src" / "prima_memory" / "persistence" / "schema.sql"
 
 
-def init_db():
-    # Ensure data directory exists
+def init_db() -> None:
+    """Initialize the PRIMA SQLite database."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    # Connect to SQLite database
+    if not SCHEMA_PATH.exists():
+        raise FileNotFoundError(f"Schema file not found: {SCHEMA_PATH}")
+
     conn = sqlite3.connect(DB_PATH)
+
     try:
-        with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA journal_mode = WAL;")
+
+        with SCHEMA_PATH.open("r", encoding="utf-8") as f:
             schema_sql = f.read()
 
         conn.executescript(schema_sql)
         conn.commit()
 
-        print(f"[PRIMA] Database initialized at {DB_PATH}")
+        print(f"[PRIMA] Database initialized at: {DB_PATH}")
 
     finally:
         conn.close()
