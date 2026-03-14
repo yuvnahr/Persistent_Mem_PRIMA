@@ -11,10 +11,12 @@ Implements the A-MEM evolution stage (Ps3).
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from typing import Any, Dict, List
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.memory_store import MemoryStore
+from prima_memory.core.note import MemoryNote
 
 
 class MemoryEvolver:
@@ -27,14 +29,6 @@ class MemoryEvolver:
         store: MemoryStore,
         min_retrievals: int = 2,
     ) -> None:
-        """
-        Args:
-            store:
-                Persistence backend.
-            min_retrievals:
-                Minimum retrieval count before a memory
-                becomes eligible for evolution.
-        """
         self.store = store
         self.min_retrievals = min_retrievals
 
@@ -47,17 +41,11 @@ class MemoryEvolver:
         source: MemoryNote,
         related: List[MemoryNote],
     ) -> None:
-        """
-        Evolve related memories using a new source memory.
-
-        Args:
-            source:
-                Newly added or focused memory.
-            related:
-                Semantically related existing memories.
-        """
 
         for target in related:
+            if target is None:
+                continue
+
             if target.id == source.id:
                 continue
 
@@ -67,18 +55,14 @@ class MemoryEvolver:
             self._evolve_single(target, source)
 
     # --------------------------------------------------
-    # Decision logic
+    # Eligibility
     # --------------------------------------------------
 
     def _should_evolve(self, note: MemoryNote) -> bool:
-        """
-        Decide whether a memory is eligible for evolution.
-        """
-
         return note.retrieval_count >= self.min_retrievals
 
     # --------------------------------------------------
-    # Evolution actions
+    # Evolution logic
     # --------------------------------------------------
 
     def _evolve_single(
@@ -86,40 +70,31 @@ class MemoryEvolver:
         target: MemoryNote,
         source: MemoryNote,
     ) -> None:
-        """
-        Apply semantic evolution to a single memory.
-        """
 
         changes: Dict[str, Dict[str, Any]] = {}
 
         # -------------------------
-        # 1️⃣ Merge tags
+        # Merge tags
         # -------------------------
 
         new_tags = sorted(set(target.tags) | set(source.tags))
 
         if new_tags != target.tags:
-            changes["tags"] = {
-                "old": target.tags,
-                "new": new_tags,
-            }
+            changes["tags"] = {"old": target.tags, "new": new_tags}
             target.tags = new_tags
 
         # -------------------------
-        # 2️⃣ Merge keywords
+        # Merge keywords
         # -------------------------
 
         new_keywords = sorted(set(target.keywords) | set(source.keywords))
 
         if new_keywords != target.keywords:
-            changes["keywords"] = {
-                "old": target.keywords,
-                "new": new_keywords,
-            }
+            changes["keywords"] = {"old": target.keywords, "new": new_keywords}
             target.keywords = new_keywords
 
         # -------------------------
-        # 3️⃣ Context refinement
+        # Context refinement
         # -------------------------
 
         if source.context and source.context not in (target.context or ""):
@@ -131,30 +106,80 @@ class MemoryEvolver:
                 else source.context
             )
 
-            changes["context"] = {
-                "old": old_context,
-                "new": target.context,
-            }
-
-        # -------------------------
-        # 4️⃣ Persist changes
-        # -------------------------
+            changes["context"] = {"old": old_context, "new": target.context}
 
         if not changes:
             return
 
-        # Update memory record
-        self.store.update_memory(
-            memory_id=target.id,
-            context=target.context,
-            keywords=target.keywords,
-            tags=target.tags,
-        )
+        # --------------------------------------------------
+        # Persist changes (MemoryStore API)
+        # --------------------------------------------------
 
+        update_memory = getattr(self.store, "update_memory", None)
+
+        if callable(update_memory):
+            update_memory(
+                memory_id=target.id,
+                context=target.context,
+                keywords=target.keywords,
+                tags=target.tags,
+            )
+
+        # --------------------------------------------------
+        # SQLiteMemoryStore fallback
+        # --------------------------------------------------
+
+        else:
+
+            update_note = getattr(self.store, "update_note", None)
+
+            if callable(update_note):
+                update_note(target)
+
+            # Force persistence of semantic fields
+            conn = sqlite3.connect(self.store.db_path)
+
+            try:
+                conn.execute(
+                    """
+                    UPDATE memory_notes
+                    SET context = ?, tags = ?, keywords = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        target.context,
+                        json.dumps(target.tags),
+                        json.dumps(target.keywords),
+                        target.id,
+                    ),
+                )
+                conn.commit()
+
+            finally:
+                conn.close()
+
+        # --------------------------------------------------
         # Log evolution event
-        self.store.log_evolution(
-            memory_id=target.id,
-            timestamp=source.created_at,
-            action="semantic_refinement",
-            details=changes,
-        )
+        # --------------------------------------------------
+
+        timestamp = getattr(source, "created_at", None)
+
+        log_evolution = getattr(self.store, "log_evolution", None)
+        record_evolution = getattr(self.store, "record_evolution", None)
+
+        if callable(log_evolution):
+
+            log_evolution(
+                memory_id=target.id,
+                timestamp=timestamp,
+                action="semantic_refinement",
+                details=changes,
+            )
+
+        elif callable(record_evolution):
+
+            record_evolution(
+                note=target,
+                action="semantic_refinement",
+                details=changes,
+            )

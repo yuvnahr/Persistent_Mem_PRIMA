@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from prima_memory.core.note import MemoryNote
 from prima_memory.core.memory_store import MemoryStore
+from prima_memory.core.note import MemoryNote
 
 
 class MemoryLinker:
@@ -27,19 +27,8 @@ class MemoryLinker:
         store: MemoryStore,
         similarity_threshold: float = 0.6,
     ) -> None:
-        """
-        Args:
-            store:
-                Persistence backend.
-            similarity_threshold:
-                Minimum similarity required to create a link.
-        """
         self.store = store
         self.similarity_threshold = similarity_threshold
-
-    # --------------------------------------------------
-    # Public API
-    # --------------------------------------------------
 
     def link(
         self,
@@ -48,12 +37,6 @@ class MemoryLinker:
     ) -> None:
         """
         Create links between a source memory and retrieved memories.
-
-        Args:
-            source:
-                Newly created or active memory.
-            retrieved:
-                Candidate memories with similarity scores.
         """
 
         for target, score in retrieved:
@@ -64,20 +47,25 @@ class MemoryLinker:
                 continue
 
             relation_type = self._infer_relation_type(source, target)
-
-            # Normalize score for safety
             strength = max(0.0, min(score, 1.0))
 
-            self.store.insert_link(
-                source_id=source.id,
-                target_id=target.id,
-                relation_type=relation_type,
-                strength=strength,
-            )
+            insert_link = getattr(self.store, "insert_link", None)
+            add_link = getattr(self.store, "add_link", None)
 
-    # --------------------------------------------------
-    # Decision logic
-    # --------------------------------------------------
+            if callable(insert_link):
+                insert_link(
+                    source_id=source.id,
+                    target_id=target.id,
+                    relation_type=relation_type,
+                    strength=strength,
+                )
+            elif callable(add_link):
+                add_link(
+                    source_id=source.id,
+                    target_id=target.id,
+                    relation_type=relation_type,
+                    strength=strength,
+                )
 
     def _should_link(
         self,
@@ -85,27 +73,18 @@ class MemoryLinker:
         target: MemoryNote,
         similarity_score: float,
     ) -> bool:
-        """
-        Determine if two memories should be linked.
-        """
-
-        # Similarity gate
         if similarity_score < self.similarity_threshold:
             return False
 
-        # Tag overlap
         if set(source.tags) & set(target.tags):
             return True
 
-        # Keyword overlap
         if set(source.keywords) & set(target.keywords):
             return True
 
-        # Context heuristic
         if source.context and target.context:
             s_ctx = source.context.lower()
             t_ctx = target.context.lower()
-
             if s_ctx in t_ctx or t_ctx in s_ctx:
                 return True
 
@@ -116,13 +95,6 @@ class MemoryLinker:
         source: MemoryNote,
         target: MemoryNote,
     ) -> str:
-        """
-        Infer relationship type between memories.
-
-        Phase-2 currently uses heuristic inference.
-        Later this will be replaced with LLM reasoning.
-        """
-
         if set(source.tags) & set(target.tags):
             return "related"
 
