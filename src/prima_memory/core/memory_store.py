@@ -12,7 +12,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DB_PATH = PROJECT_ROOT / "data" / "memory.db"
 
@@ -113,9 +112,7 @@ class MemoryStore:
         """Return all memory embeddings."""
 
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT id, embedding FROM memory_notes"
-            ).fetchall()
+            rows = conn.execute("SELECT id, embedding FROM memory_notes").fetchall()
 
         return [(row["id"], row["embedding"]) for row in rows]
 

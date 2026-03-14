@@ -9,7 +9,6 @@ import pytest
 
 from prima_memory.core.memory_store import MemoryStore
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = PROJECT_ROOT / "src" / "prima_memory" / "persistence" / "schema.sql"
 
