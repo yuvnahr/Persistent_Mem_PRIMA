@@ -9,10 +9,12 @@ new information and repeated access patterns.
 Implements the A-MEM evolution stage (Ps3).
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List
 
 from prima_memory.core.note import MemoryNote
-from prima_memory.persistence.sqlite import SQLiteMemoryStore
+from prima_memory.core.memory_store import MemoryStore
 
 
 class MemoryEvolver:
@@ -22,23 +24,23 @@ class MemoryEvolver:
 
     def __init__(
         self,
-        store: SQLiteMemoryStore,
+        store: MemoryStore,
         min_retrievals: int = 2,
-    ):
+    ) -> None:
         """
         Args:
-            store (SQLiteMemoryStore):
+            store:
                 Persistence backend.
-            min_retrievals (int):
-                Minimum retrieval count before a memory is eligible
-                for evolution.
+            min_retrievals:
+                Minimum retrieval count before a memory
+                becomes eligible for evolution.
         """
         self.store = store
         self.min_retrievals = min_retrievals
 
-    # -----------------------------
+    # --------------------------------------------------
     # Public API
-    # -----------------------------
+    # --------------------------------------------------
 
     def evolve(
         self,
@@ -49,9 +51,9 @@ class MemoryEvolver:
         Evolve related memories using a new source memory.
 
         Args:
-            source (MemoryNote):
+            source:
                 Newly added or focused memory.
-            related (List[MemoryNote]):
+            related:
                 Semantically related existing memories.
         """
 
@@ -64,9 +66,9 @@ class MemoryEvolver:
 
             self._evolve_single(target, source)
 
-    # -----------------------------
+    # --------------------------------------------------
     # Decision logic
-    # -----------------------------
+    # --------------------------------------------------
 
     def _should_evolve(self, note: MemoryNote) -> bool:
         """
@@ -75,9 +77,9 @@ class MemoryEvolver:
 
         return note.retrieval_count >= self.min_retrievals
 
-    # -----------------------------
+    # --------------------------------------------------
     # Evolution actions
-    # -----------------------------
+    # --------------------------------------------------
 
     def _evolve_single(
         self,
@@ -90,8 +92,12 @@ class MemoryEvolver:
 
         changes: Dict[str, Dict[str, Any]] = {}
 
-        # 1. Merge tags
+        # -------------------------
+        # 1️⃣ Merge tags
+        # -------------------------
+
         new_tags = sorted(set(target.tags) | set(source.tags))
+
         if new_tags != target.tags:
             changes["tags"] = {
                 "old": target.tags,
@@ -99,55 +105,56 @@ class MemoryEvolver:
             }
             target.tags = new_tags
 
-        # 2. Refine context (simple concatenation heuristic)
+        # -------------------------
+        # 2️⃣ Merge keywords
+        # -------------------------
+
+        new_keywords = sorted(set(target.keywords) | set(source.keywords))
+
+        if new_keywords != target.keywords:
+            changes["keywords"] = {
+                "old": target.keywords,
+                "new": new_keywords,
+            }
+            target.keywords = new_keywords
+
+        # -------------------------
+        # 3️⃣ Context refinement
+        # -------------------------
+
         if source.context and source.context not in (target.context or ""):
             old_context = target.context
+
             target.context = (
                 f"{target.context}; {source.context}"
                 if target.context
                 else source.context
             )
+
             changes["context"] = {
                 "old": old_context,
                 "new": target.context,
             }
 
-        # 3. Persist changes
-        if changes:
-            self.store.record_evolution(
-                note=target,
-                action="semantic_refinement",
-                details=changes,
-            )
+        # -------------------------
+        # 4️⃣ Persist changes
+        # -------------------------
 
-            # Persist updated fields
-            self._persist_updates(target)
+        if not changes:
+            return
 
-    # -----------------------------
-    # Persistence helpers
-    # -----------------------------
+        # Update memory record
+        self.store.update_memory(
+            memory_id=target.id,
+            context=target.context,
+            keywords=target.keywords,
+            tags=target.tags,
+        )
 
-    def _persist_updates(self, note: MemoryNote) -> None:
-        """
-        Write updated semantic fields back to SQLite.
-        """
-        import json
-        import sqlite3
-
-        conn = sqlite3.connect(self.store.db_path)
-        try:
-            conn.execute(
-                """
-                UPDATE memory_notes
-                SET context = ?, tags = ?
-                WHERE id = ?
-                """,
-                (
-                    note.context,
-                    json.dumps(note.tags),
-                    note.id,
-                ),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        # Log evolution event
+        self.store.log_evolution(
+            memory_id=target.id,
+            timestamp=source.created_at,
+            action="semantic_refinement",
+            details=changes,
+        )
