@@ -8,6 +8,7 @@ Validates:
 2. Correct persistence of links in SQLite
 3. No self-links
 """
+
 """
 from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex

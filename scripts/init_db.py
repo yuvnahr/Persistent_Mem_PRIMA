@@ -5,8 +5,8 @@ Initializes the SQLite database for PRIMA by executing the schema.sql file.
 Safe to run multiple times (idempotent).
 """
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

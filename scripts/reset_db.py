@@ -5,8 +5,8 @@ Completely clears all PRIMA database tables while preserving schema.
 Safe for development and testing.
 """
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "data" / "memory.db"

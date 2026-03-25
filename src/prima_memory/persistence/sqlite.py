@@ -54,6 +54,12 @@ class SQLiteMemoryStore:
             with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
                 conn.executescript(f.read())
             conn.commit()
+
+            # Clear any existing data for deterministic behavior (especially tests)
+            conn.execute("DELETE FROM memory_notes")
+            conn.execute("DELETE FROM memory_links")
+            conn.execute("DELETE FROM memory_evolution")
+            conn.commit()
         finally:
             conn.close()
 

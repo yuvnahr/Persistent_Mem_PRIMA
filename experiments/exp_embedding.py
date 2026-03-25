@@ -1,4 +1,4 @@
-'''
+"""
 from prima_memory.core.embedding import EmbeddingIndex
 
 def main():
@@ -25,4 +25,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
+"""

@@ -9,6 +9,7 @@ This test validates:
 3. Retrieval of full MemoryNote objects
 4. Access metadata updates (retrieval_count)
 """
+
 """
 from prima_memory.core.note import MemoryNote
 from prima_memory.core.embedding import EmbeddingIndex

@@ -16,8 +16,8 @@ from __future__ import annotations
 from typing import List, Set
 
 from prima_memory.core.embedding import EmbeddingIndex
+from prima_memory.core.memory_store import MemoryStore
 from prima_memory.core.note import MemoryNote
-from prima_memory.persistence.sqlite import SQLiteMemoryStore
 
 
 class MemoryRetriever:
@@ -27,7 +27,7 @@ class MemoryRetriever:
 
     def __init__(
         self,
-        store: SQLiteMemoryStore,
+        store: MemoryStore,
         embedder: EmbeddingIndex,
     ) -> None:
         self.store = store
@@ -75,7 +75,23 @@ class MemoryRetriever:
 
         # 3️⃣ Load top-k semantic matches
         for memory_id, _score in search_results:
-            note = self.store.get_note(memory_id)
+            # Support generic MemoryStore API: get_memory returns dict
+            note_data = None
+            get_note = getattr(self.store, "get_note", None)
+            get_memory = getattr(self.store, "get_memory", None)
+
+            if callable(get_note):
+                note_data = get_note(memory_id)
+            elif callable(get_memory):
+                note_data = get_memory(memory_id)
+
+            if note_data is None:
+                continue
+
+            if isinstance(note_data, dict):
+                note = MemoryNote.from_dict(note_data)
+            else:
+                note = note_data
 
             if note is None:
                 continue
@@ -116,9 +132,24 @@ class MemoryRetriever:
                 else link["source_id"]
             )
 
-            note = self.store.get_note(other_id)
+            note_data = None
+            get_note = getattr(self.store, "get_note", None)
+            get_memory = getattr(self.store, "get_memory", None)
 
-            if note is not None:
-                linked_notes.append(note)
+            if callable(get_note):
+                note_data = get_note(other_id)
+            elif callable(get_memory):
+                note_data = get_memory(other_id)
+
+            if note_data is None:
+                continue
+
+            if isinstance(note_data, dict):
+                linked_note = MemoryNote.from_dict(note_data)
+            else:
+                linked_note = note_data
+
+            if linked_note is not None:
+                linked_notes.append(linked_note)
 
         return linked_notes

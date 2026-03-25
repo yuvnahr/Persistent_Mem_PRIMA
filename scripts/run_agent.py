@@ -3,67 +3,38 @@ run_agent.py
 
 Interactive PRIMA agent demonstrating the full A-MEM pipeline:
 
-1. Retrieve relevant memories
-2. Generate response using LLM
-3. Store interaction as new memory
-4. Link related memories
-5. Evolve existing memories
+1. Note Construction (LLM metadata generation)
+2. Link Generation (LLM relationship analysis)
+3. Memory Evolution (LLM evolution decisions)
+4. Retrieval (with linked memory expansion)
 """
 
 from __future__ import annotations
 
 import datetime
-from typing import List
 
-from prima_memory.core.note import MemoryNote
-from prima_memory.core.embedding import EmbeddingIndex
-from prima_memory.core.retriever import MemoryRetriever
-from prima_memory.core.linker import MemoryLinker
-from prima_memory.core.evolution import MemoryEvolver
-from prima_memory.core.memory_store import MemoryStore
-from prima_memory.llm.hf_model import HFModel
+import torch
+
+from prima_memory.core.agentic_memory_system import AgenticMemorySystem
 from prima_memory.llm.prompts import build_agent_prompt
-
-
-def build_interaction_note(user_input: str, embedding: List[float]) -> MemoryNote:
-    """
-    Create a MemoryNote from user interaction.
-    """
-
-    now = datetime.datetime.utcnow().isoformat()
-
-    note = MemoryNote(
-        content=user_input,
-        context="User interaction",
-        tags=["interaction"],
-        keywords=["user_input"],
-        created_at=now,
-    )
-
-    note.embedding = embedding
-
-    return note
 
 
 def main() -> None:
     """
-    Launch interactive PRIMA agent.
+    Launch interactive PRIMA agent with full A-MEM pipeline.
     """
 
     # -------------------------
-    # Initialize components
+    # Initialize A-MEM System
     # -------------------------
 
-    store = MemoryStore()
-    embedder = EmbeddingIndex()
+    memory_system = AgenticMemorySystem(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        llm_model_name="microsoft/DialoGPT-medium",  # Can be changed to larger models
+        device="cuda" if torch.cuda.is_available() else "cpu",
+    )
 
-    retriever = MemoryRetriever(store=store, embedder=embedder)
-    linker = MemoryLinker(store=store)
-    evolver = MemoryEvolver(store=store)
-
-    llm = HFModel()
-
-    print("PRIMA Agent ready. Type 'exit' to quit.\n")
+    print("PRIMA Agent (A-MEM) ready. Type 'exit' to quit.\n")
 
     # -------------------------
     # Interactive loop
@@ -76,70 +47,49 @@ def main() -> None:
             break
 
         # ---------------------------------
-        # 1️⃣ Retrieve memories
+        # 1️⃣ Retrieve relevant memories
         # ---------------------------------
 
-        memories = retriever.retrieve(
-            user_input,
-            top_k=5,
-            expand_links=True,
-        )
+        memories = memory_system.search(user_input, k=5)
+
+        # Convert to MemoryNote list for prompt building
+        memory_notes = []
+        for mem_dict in memories:
+            from prima_memory.core.note import MemoryNote
+
+            note = MemoryNote(
+                content=mem_dict["content"],
+                note_id=mem_dict["id"],
+                context=mem_dict["context"],
+                keywords=mem_dict["keywords"],
+                tags=mem_dict["tags"],
+            )
+            memory_notes.append(note)
 
         # ---------------------------------
-        # 2️⃣ Generate response
+        # 2️⃣ Generate response using LLM
         # ---------------------------------
 
         prompt = build_agent_prompt(
             query=user_input,
-            memories=memories,
+            memories=memory_notes,
         )
 
-        response = llm.generate(prompt)
+        response = memory_system.llm.generate(prompt)
 
         print(f"\nAgent: {response}\n")
 
         # ---------------------------------
-        # 3️⃣ Create new memory
+        # 3️⃣ Store interaction as memory
         # ---------------------------------
 
-        embedding = embedder.embed_text(user_input)
-
-        note = build_interaction_note(
-            user_input=user_input,
-            embedding=embedding,
+        # Add the user input as a new memory (full A-MEM pipeline)
+        memory_id = memory_system.add_note(
+            content=user_input,
+            time=datetime.datetime.utcnow().strftime("%Y%m%d%H%M"),
         )
 
-        # Store memory
-        store.insert_memory(
-            memory_id=note.id,
-            content=note.content,
-            created_at=note.created_at,
-            context=note.context,
-            keywords=note.keywords,
-            tags=note.tags,
-            embedding=note.embedding,
-        )
-
-        # Add to embedding index
-        embedder.add(note.id, note.embedding)
-
-        # ---------------------------------
-        # 4️⃣ Link memories
-        # ---------------------------------
-
-        linker.link(
-            source=note,
-            retrieved=[(m, 1.0) for m in memories],
-        )
-
-        # ---------------------------------
-        # 5️⃣ Evolve memories
-        # ---------------------------------
-
-        evolver.evolve(
-            source=note,
-            related=memories,
-        )
+        print(f"Memory stored with ID: {memory_id}")
 
 
 if __name__ == "__main__":

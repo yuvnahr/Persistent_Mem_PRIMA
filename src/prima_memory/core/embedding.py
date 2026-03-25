@@ -5,7 +5,7 @@ Semantic embedding and vector index management for PRIMA.
 
 This module is responsible for:
 - Encoding text into dense vectors
-- Maintaining a similarity index (FAISS)
+- Maintaining a similarity index (ChromaDB)
 - Mapping memory IDs to vector positions
 
 This is a derived layer: embeddings can be recomputed at any time.
@@ -13,9 +13,10 @@ This is a derived layer: embeddings can be recomputed at any time.
 
 from typing import List, Tuple
 
-import faiss
-import numpy as np
+import chromadb
 from sentence_transformers import SentenceTransformer
+
+from prima_memory.core.note import MemoryNote
 
 
 class EmbeddingIndex:
@@ -26,23 +27,22 @@ class EmbeddingIndex:
     def __init__(
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-        embedding_dim: int = 384,
+        collection_name: str = "memory_embeddings",
     ):
         """
-        Initialize embedding model and FAISS index.
+        Initialize embedding model and ChromaDB collection.
 
         Args:
             model_name (str):
                 HuggingFace / SentenceTransformer model name.
-            embedding_dim (int):
-                Dimensionality of the embedding vectors.
+            collection_name (str):
+                Name of the ChromaDB collection.
         """
         self.model = SentenceTransformer(model_name)
+        self.client = chromadb.Client()
+        self.collection = self.client.get_or_create_collection(name=collection_name)
 
-        # FAISS index using cosine similarity
-        self.index = faiss.IndexFlatIP(embedding_dim)
-
-        # ID <-> index mapping
+        # ID mapping (ChromaDB handles this internally)
         self.id_to_pos: dict[str, int] = {}
         self.pos_to_id: dict[int, str] = {}
 
@@ -59,28 +59,47 @@ class EmbeddingIndex:
         vector = self.model.encode(text, normalize_embeddings=True)
         return vector.tolist()
 
+    def embed_memory_note(self, note: MemoryNote) -> List[float]:
+        """
+        Generate embedding for a memory note using all textual components.
+
+        Follows A-MEM approach: concat(content, keywords, tags, context)
+        """
+        # Concatenate all textual components as in A-MEM
+        text_components = [
+            note.content,
+            " ".join(note.keywords) if note.keywords else "",
+            " ".join(note.tags) if note.tags else "",
+            note.context if note.context else "",
+        ]
+
+        combined_text = " ".join(text_components).strip()
+
+        return self.embed_text(combined_text)
+
     # -----------------------------
     # Index management
     # -----------------------------
 
-    def add(self, memory_id: str, embedding: List[float]) -> None:
+    def add(
+        self, memory_id: str, embedding: List[float], metadata: dict = None
+    ) -> None:
         """
         Add a memory embedding to the index.
 
         Args:
             memory_id (str): MemoryNote ID
             embedding (List[float]): Dense vector
+            metadata (dict): Optional metadata
         """
-        if memory_id in self.id_to_pos:
-            # Avoid duplicate inserts
-            return
+        if metadata is None:
+            metadata = {"type": "memory"}
 
-        vec = np.array([embedding], dtype="float32")
-        self.index.add(vec)
-
-        self.id_to_pos[memory_id] = self._next_pos
-        self.pos_to_id[self._next_pos] = memory_id
-        self._next_pos += 1
+        self.collection.add(
+            embeddings=[embedding],  # type: ignore[arg-type]
+            ids=[memory_id],
+            metadatas=[metadata],
+        )
 
     # -----------------------------
     # Similarity search
@@ -103,21 +122,21 @@ class EmbeddingIndex:
         Returns:
             List of (memory_id, similarity_score)
         """
-        if self.index.ntotal == 0:
+        results = self.collection.query(
+            query_embeddings=[query_embedding],  # type: ignore[arg-type]
+            n_results=top_k,
+        )
+
+        if not results["ids"][0]:
             return []
 
-        query = np.array([query_embedding], dtype="float32")
-        scores, indices = self.index.search(query, top_k)
+        memory_results = []
+        for memory_id, distance in zip(results["ids"][0], results["distances"][0]):
+            # ChromaDB returns cosine distance, convert to similarity
+            similarity = 1.0 - distance
+            memory_results.append((memory_id, similarity))
 
-        results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx == -1:
-                continue
-            memory_id = self.pos_to_id.get(idx)
-            if memory_id:
-                results.append((memory_id, float(score)))
-
-        return results
+        return memory_results
 
     # -----------------------------
     # Rebuilding (important later)
@@ -131,10 +150,13 @@ class EmbeddingIndex:
         - bulk memory load
         - major evolution changes
         """
-        self.index.reset()
-        self.id_to_pos.clear()
-        self.pos_to_id.clear()
-        self._next_pos = 0
+        # Delete existing collection and recreate
+        try:
+            self.client.delete_collection(self.collection.name)
+        except Exception as e:
+            # tolerate missing collection or deletion issues
+            print(f"Chroma collection delete error: {e}")
+        self.collection = self.client.create_collection(name=self.collection.name)
 
         for memory_id, embedding in embeddings:
             self.add(memory_id, embedding)

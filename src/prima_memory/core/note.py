@@ -64,6 +64,7 @@ class MemoryNote:
         retrieval_count: int = 0,
         last_accessed: Optional[str] = None,
         evolution_history: Optional[List[Dict[str, Any]]] = None,
+        category: Optional[int] = None,
     ):
         """
         Initialize a MemoryNote.
@@ -118,6 +119,9 @@ class MemoryNote:
         # ---- Usage & evolution ----
         self.retrieval_count: int = retrieval_count
         self.evolution_history: List[Dict[str, Any]] = evolution_history or []
+
+        # ---- Optional category for dataset labeling / tasks ----
+        self.category: Optional[int] = category
 
     # ----------------------------
     # Access & usage updates
@@ -194,6 +198,7 @@ class MemoryNote:
             "links": self.links,
             "retrieval_count": self.retrieval_count,
             "evolution_history": self.evolution_history,
+            "category": self.category,
         }
 
     @classmethod
@@ -213,6 +218,7 @@ class MemoryNote:
             retrieval_count=data.get("retrieval_count", 0),
             last_accessed=data.get("last_accessed"),
             evolution_history=data.get("evolution_history"),
+            category=data.get("category"),
         )
 
     # ----------------------------

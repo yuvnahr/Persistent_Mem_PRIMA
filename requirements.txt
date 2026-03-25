@@ -10,13 +10,21 @@ sentence-transformers==2.2.2
 # -----------------------------
 # Vector search
 # -----------------------------
-faiss-cpu==1.7.4
+chromadb>=0.4.0
 
 # -----------------------------
 # Numerical / scientific
 # -----------------------------
 numpy==1.26.4
 scipy==1.11.4
+
+# -----------------------------
+# Benchmark evaluation
+# -----------------------------
+rouge-score>=0.1.2
+bert-score>=0.3.13
+nltk>=3.8.1
+evaluate>=0.4.0
 
 # -----------------------------
 # Utilities
