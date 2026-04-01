@@ -1,4 +1,3 @@
-cat << 'EOF' > README.md
 # 🧠 PRIMA: Persistent Agentic Memory Module (A-MEM Implementation)
 
 > A **self-evolving, graph-aware memory system for LLM agents** inspired by A-MEM and powered by PRIMA.
